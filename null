@@ -1,0 +1,1 @@
+Running scheduled command: "D:\xampp\php\php.exe" "artisan" check:city > "NUL" 2>&1
