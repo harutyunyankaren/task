@@ -86,7 +86,7 @@ class CheckCitiesData extends Command
 
     /**
      * @param $lines
-     * Check ans update Cities table
+     * Check and update Cities table
      */
     public function updateCitiesTable($lines)
     {
@@ -113,38 +113,35 @@ class CheckCitiesData extends Command
             'modification_date'
         ];
 
-        $cities = City::all()->keyBy('geonameid')->toArray();
-        $item_with_key = [];
+        $cities = City::pluck('modification_date', 'geonameid')->toArray();
+        $count_cities = count($cities);
+        $date = City::max('modification_date');
+        $item_geonameid = [];
+
 
         foreach ($lines as $line) {
-            $item_values_array = preg_split('[\t]', $line);
-            //get each city data
-            $item = array_combine($columns, $item_values_array);
-            //get each city data with key
-            $item_with_key[$item_values_array[0]] = array_combine($columns, $item_values_array);
+            $values = preg_split('[\t]', $line);
+            // get each city data
+            $item = array_combine($columns, $values);
+            // get items geonameid
+            $items_geonameid[] = $item['geonameid'];
 
-            if (count($cities) != 0) {
-                if (array_key_exists ($item['geonameid'], $cities)) {
-                    if ($cities[$item['geonameid']]['modification_date'] != $item['modification_date']) {
-                        $city = City::where('geonameid', $item['geonameid'])->first();
-                        $city->timestamps = false;
-                        $city->update(array_filter($item));
-                    }
+            if (!$date || $item['modification_date'] > $date) {
+                $check = City::where('geonameid', $item['geonameid'])->first();
+                if ($check) {
+                    $check->timestamps = false;
+                    $check->update(array_filter($item));
                 } else {
                     City::insert(array_filter($item));
                 }
-            } else {
-                City::insert(array_filter($item));
             }
-
         }
 
         //delete city from Cities, which is absent from file
-        if (count($cities) != 0 && count($item_with_key) != 0) {
-            foreach ($cities as $city) {
-                if (!array_key_exists ($city['geonameid'], $item_with_key)) {
-                    dump('delete');
-                    City::where('geonameid', $city['geonameid'])->delete();
+        if ($count_cities != 0 && count($item_geonameid) != 0) {
+            foreach ($cities as $key => $val) {
+                if (!in_array($key, $item_geonameid)) {
+                    City::where('geonameid', $key)->delete();
                 }
             }
         }
